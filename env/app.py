@@ -6,11 +6,11 @@ import tkinter as tk
 from tkinter import ttk
 from pytube import YouTube
 from PIL import Image, ImageTk
-from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_videoclips
+from moviepy.editor import *
 import urllib.request
 from io import BytesIO
 import math as math
-import os
+import os, shutil
 
 def extractNumber(s):
     return int(''.join(filter(str.isdigit, s)))
@@ -25,56 +25,84 @@ def clipboardDownload():
      downloadVideo()
 
 def downloadVideo():
-     image_label.pack_forget()
-     url = entryURL.get()
-     resolution = resVar.get()
+    image_label.pack_forget()
+    url = entryURL.get()
+    resolution = resVar.get()
 
-     statLabel.pack(padx=10, pady=5)
-     progBar.pack(padx=10, pady=5)
-     progLabel.pack(padx=10, pady=5)
+    statLabel.pack(padx=10, pady=5)
+    progBar.pack(padx=10, pady=5)
+    progLabel.pack(padx=10, pady=5)
 
-     try:
-          yt = YouTube(url, on_progress_callback=onProgress, use_oauth=False, allow_oauth_cache=True)
-          if resolution == "max":
-               stream = yt.streams.filter(progressive=False).order_by("resolution").last()
-               resolution = stream.resolution
-               resVar.set(resolution)
-          else:stream = yt.streams.filter(res=resolution).first()
+    try:
+        yt = YouTube(url, on_progress_callback=onProgress, use_oauth=False, allow_oauth_cache=True)
+        if resolution == "max":
+            stream = yt.streams.filter(progressive=False).order_by("resolution").last()
+            resolution = stream.resolution
+            resVar.set(resolution)
+        else:stream = yt.streams.filter(res=resolution).first()
           
 
-          statLabel.configure(text=f"{str(yt.title)}", text_color="white")
+        statLabel.configure(text=f"{str(yt.title)}", text_color="white")
 
-          # load thumbnail image
-          image_label.configure(image=loadThumbnail(url))
-          image_label.pack(padx=10, pady=10)
+        # load thumbnail image
+        image_label.configure(image=loadThumbnail(url))
+        image_label.pack(padx=10, pady=10)
 
-          print(resolution)
-          if int(resolution[0:-1]) <= 720:
-               statLabel.configure(text=f"Starting download: {str(yt.title)}", text_color="white", fg_color="transparent")
-               os.path.join("downloads/", f"{yt.title}.mp4")
+        print(resolution)
+        if int(resolution[0:-1]) <= 720:
+            statLabel.configure(text=f"Starting download: {str(yt.title)}", text_color="white", fg_color="transparent")
+            os.path.join("env/downloads/", f"{yt.title}.mp4")
 
-               stream.download(output_path="downloads")
+            stream.download(output_path="env/downloads")
 
-               statLabel.configure(text=f"Successfully downloaded: {str(yt.title)}", text_color="green", fg_color="transparent")
-               progBar.set(1)
-          else:
-               pass
-               # in this case, we need to download audio and video seperately and merge them in post
-          
-               stream = stream
+            statLabel.configure(text=f"Successfully downloaded: {str(yt.title)}", text_color="green", fg_color="transparent")
+            progBar.set(1)
+        else:
+            for f in os.listdir("env/downloads/temp"):
+                file_path = os.path.join("env/downloads/temp", f)
+                try:
+                    if os.path.isfile(file_path) or os.path.islink(file_path):
+                        os.unlink(file_path)
+                    elif os.path.isdir(file_path):
+                        shutil.rmtree(file_path)
+                except Exception as e:
+                    print('Failed to delete %s. Reason: %s' % (file_path, e))
+            # in this case, we need to download audio and video seperately and merge them in post
+        
+            strAudio = yt.streams.get_audio_only()
+            strVideo = yt.streams.filter(resolution=resolution).order_by('bitrate').first()
 
+            print(f'Bitrate: {yt.streams.get_audio_only().bitrate}')
+            print(strVideo)
 
+            statLabel.configure(text=f"Starting download: {str(yt.title)}", text_color="white", fg_color="transparent")
+            os.path.join("env/downloads/temp/", f'{yt.title}TMP.mp4')
 
+            tmpAudioFile = strAudio.download(output_path="env/downloads/temp")
+            tmpVideoFile = strVideo.download(output_path="env/downloads/temp")
+            os.rename(tmpAudioFile, "env/downloads/temp/TMP.mp3")
+            os.rename(tmpVideoFile, "env/downloads/temp/TMP.mp4")
 
+            audio = AudioFileClip('env/downloads/temp/TMP.mp3')
+            video = VideoFileClip('env/downloads/temp/TMP.mp4')
 
+            compoundClip = CompositeAudioClip([audio])
+            video.audio = compoundClip
+            video.write_videofile(f'env/downloads/temp/{yt.title}.mp4', threads=4, logger=None)
+            os.replace(f"env/downloads/temp/{yt.title}.mp4", f"env/downloads/{yt.title}.mp4")
 
+            for f in os.listdir("env/downloads/temp"): # clear temp file
+                file_path = os.path.join("env/downloads/temp", f)
+                try:
+                    if os.path.isfile(file_path) or os.path.islink(file_path):
+                        os.unlink(file_path)
+                    elif os.path.isdir(file_path):
+                        shutil.rmtree(file_path)
+                except Exception as e:
+                    print('Failed to delete %s. Reason: %s' % (file_path, e))
 
-
-
-
-
-     except Exception as e:
-          statLabel.configure(text=f"Error {str(e)}", text_color="white", fg_color="red")
+    except Exception as e:
+        statLabel.configure(text=f"Error {str(e)}", text_color="white", fg_color="red")
 
 def downloadAudio():
      image_label.pack_forget()
@@ -184,7 +212,7 @@ root.title("YouTube Downloader")
 # restrict window scaling
 root.geometry("1000x800")
 root.minsize(1000,800)
-root.maxsize(1000, 800)
+root.maxsize(3000, 2400)
 
 # create frame to hold content
 contentFrame = ctk.CTkFrame(root)
