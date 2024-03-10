@@ -19,11 +19,13 @@ def extractNumber(s):
 
 # Define the function for merging audio and video
 def merge_audio_video(audio_input, video_input, output_path):
-    (
-        ffmpeg
-        .output(audio_input, video_input, output_path)
-        .run(overwrite_output=True)
-    )
+    print("arrived in merge function")
+
+    audIn = ffmpeg.input(audio_input)
+    vidIn = ffmpeg.input(video_input)
+    out = ffmpeg.input(output_path)
+
+    ffmpeg.output(audIn, vidIn, output_path).run()
 
 # Function triggered when downloading from clipboard
 def clipboardDownload():
@@ -35,6 +37,7 @@ def clipboardDownload():
     entryURL.insert(0, data)
     downloadVideo()
 
+def downloadVideo():
 
     image_label.pack_forget()
     url = entryURL.get()
@@ -94,18 +97,12 @@ def clipboardDownload():
             statLabel.configure(text=f"Merging files for {yt.title}", text_color="white", fg_color="transparent")
 
             print("fetching files...")
-            audio = ffmpeg.input("env\downloads\temp\TMP.mp3")
-            video = ffmpeg.input("env\downloads\temp\TMP.mp3")
+            audio = "env/downloads/temp/TMP.mp3"
+            video = "env/downloads/temp/TMP.mp3"
             print("fetched em")
-            
-            output_file_path = f"env/downloads/{yt.title}.mp4"
 
-            # create new video file
-            ffmpeg_cmd = f'ffmpeg -f lavfi -i color=c=black:s=640x480 -t 10 {output_file_path}'
-            subprocess.run(ffmpeg_cmd, shell=True)
             # Merge audio and video
-            output_path = os.path.join("env/downloads", f"{yt.title}.mp4")
-            merge_audio_video(audio, video, output_path)
+            merge_audio_video(audio, video, "env/downloads/temp/TMP.mp4")
             print("Done merging")
 
             # Clear temporary files
